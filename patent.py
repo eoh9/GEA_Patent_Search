@@ -28,6 +28,8 @@ import openai
 import re
 import textwrap
 
+# Load environment variables first
+load_dotenv()
 
 # 로깅 설정
 logging.basicConfig(
@@ -76,11 +78,27 @@ class APIKeyManager:
     
     @staticmethod
     def get_openai_api_key() -> str:
-        """OpenAI API 키를 환경 변수에서 안전하게 가져옴"""
+        """Get OpenAI API key from environment variables or Streamlit secrets"""
+        # First try to get from Streamlit secrets
+        try:
+            if st.secrets.get("OPENAI_API_KEY"):
+                return st.secrets["OPENAI_API_KEY"]
+        except:
+            pass
+            
+        # Then try to get from environment variables
         api_key = os.getenv('OPENAI_API_KEY')
         if not api_key:
-            raise ConfigurationError("OpenAI API 키가 설정되지 않았습니다. 환경 변수를 확인해주세요.")
+            raise ConfigurationError(
+                "OpenAI API key is not set. Please set the OPENAI_API_KEY in one of the following ways:\n"
+                "1. For local development: Create a .env file with OPENAI_API_KEY=your-key\n"
+                "2. For Streamlit Cloud: Add OPENAI_API_KEY in the app's secrets management\n"
+                "3. Set as environment variable: export OPENAI_API_KEY=your-key"
+            )
         return api_key
+
+# Initialize OpenAI client after APIKeyManager is defined
+client = OpenAI(api_key=APIKeyManager.get_openai_api_key())
 
 class ErrorHandler:
     """공통 오류 처리를 위한 클래스"""
@@ -157,16 +175,6 @@ adapter = HTTPAdapter(max_retries=retry_strategy, pool_connections=10, pool_maxs
 session.mount("http://", adapter)
 session.mount("https://", adapter)
 session.timeout = (10, 60)
-
-# Load environment variables
-load_dotenv()
-
-# Initialize OpenAI client with secure API key
-try:
-    client = OpenAI(api_key=APIKeyManager.get_openai_api_key())
-except ConfigurationError as e:
-    logging.error(str(e))
-    raise
 
 class PatentAnalysisError(Exception):
     """Custom exception for patent analysis errors"""
