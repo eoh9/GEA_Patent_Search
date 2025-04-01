@@ -41,13 +41,13 @@ load_dotenv()
 
 # Import local modules
 from patent_scraper import PatentScraper
-from patent import EnhancedPPTGenerator, EnhancedPatentAnalysisAgent
+from patent import EnhancedPatentAnalysisAgent
 
 # Constants class
 class Constants:
     GPT_MODEL = "gpt-3.5-turbo"
     GPT_MODEL_4 = "gpt-4"
-    DEFAULT_ERROR_MESSAGE = "Analysis Failed"
+    DEFAULT_ERROR_MESSAGE = "Analysis failed"
     DEFAULT_IMAGE_SIZE = "1024x1024"
     DEFAULT_IMAGE_QUALITY = "standard"
     DEFAULT_NUM_IMAGES = 1
@@ -117,7 +117,7 @@ def visualize_patent_similarities(patents, idea_description):
         fig2, ax2 = plt.subplots(figsize=(8, 8), subplot_kw=dict(projection='polar'))
         
         # Prepare data for radar chart
-        categories = ['Semantic\nSimilarity', 'Keyword\nMatch', 'Overall\nRelevance']
+        categories = ['Semantic\nSimilarity', 'Keyword\nMatching', 'Overall\nRelevance']
         num_vars = len(categories)
         
         # Calculate angles for radar chart
@@ -211,7 +211,7 @@ def display_patent_details(patent):
 def display_similarity_visualizations(idea_description, patents):
     """Display visualizations showing patent similarities"""
     if not patents or len(patents) == 0:
-        st.info("No patents available for visualization.")
+        st.info("No patent data available for visualization.")
         return
         
     st.subheader("Patent Similarity Visualization")
@@ -230,31 +230,31 @@ def display_similarity_visualizations(idea_description, patents):
         st.markdown("""
         **Visualization Interpretation:**
         
-        **Left Chart**: Shows relevance scores of top patents. Higher scores indicate greater similarity to your idea.
-        - Green (75%+): Very High Relevance
-        - Yellow (50-75%): Moderate Relevance
-        - Red (<50%): Low Relevance
+        **Left Chart**: Shows relevance scores for top patents. Higher scores indicate greater similarity to your idea.
+        - Green (75%+): Very high relevance
+        - Yellow (50-75%): Medium relevance
+        - Red (<50%): Low relevance
         
         **Right Chart**: Detailed analysis of top 3 patents:
         - Semantic Similarity: Overall conceptual similarity of the patent
-        - Keyword Match: Alignment of key technical terms
+        - Keyword Matching: Match rate of key technical terms
         - Overall Relevance: Combined similarity score
         """)
     else:
-        st.info("Unable to generate visualizations. Insufficient data available.")
+        st.info("Cannot generate visualizations. Insufficient data.")
 
 def add_comparison_feature_to_search_results(search_results, idea_description, api_key):
     """Add comparison feature to patent search results display"""
     if not search_results or len(search_results) == 0:
-        st.info("No patents available for comparison.")
+        st.info("No patents to compare.")
         return
     
-    st.subheader("Compare Your Idea with Patents")
+    st.subheader("Compare Idea with Patents")
     
     # Allow user to select a patent for comparison
     patent_options = {f"{p.get('title', 'No Title')} (ID: {p.get('patent_id', 'N/A')})": p for p in search_results}
     selected_patent_title = st.selectbox(
-        "Select a patent to compare with your idea:",
+        "Select a patent to compare:",
         options=list(patent_options.keys())
     )
     
@@ -262,7 +262,7 @@ def add_comparison_feature_to_search_results(search_results, idea_description, a
         selected_patent = patent_options[selected_patent_title]
         
         # Display selected patent info
-        st.write(f"**Comparing with:** {selected_patent.get('title', 'N/A')}")
+        st.write(f"**Comparison Target:** {selected_patent.get('title', 'N/A')}")
         
         # Create columns for comparison
         col1, col2 = st.columns(2)
@@ -315,7 +315,7 @@ def add_comparison_feature_to_search_results(search_results, idea_description, a
                     st.write(overlap)
         
         with col3:
-            if st.button("Suggest Improvements"):
+            if st.button("Generate Improvement Suggestions"):
                 with st.spinner("Generating suggestions..."):
                     analysis_agent = EnhancedPatentAnalysisAgent()
                     suggestions = analysis_agent._generate_improvement_suggestions(idea_description)
@@ -349,7 +349,7 @@ def display_search_results(search_query, search_results):
         st.dataframe(df[display_cols_with_score], use_container_width=True)
     
     # Display top 5 patents prominently
-    st.subheader("Top 5 Most Relevant Patents")
+    st.subheader("Top 5 Related Patents")
     top_patents = sorted(search_results, key=lambda x: x.get('relevance_score', 0), reverse=True)[:5]
     
     # Show the top 5 patents with expanders
@@ -380,7 +380,7 @@ def update_patent_search_tab():
                                placeholder="Enter the patent content you want to search for")
         num_results = st.slider("Number of Patents to Search", 
                            min_value=5, max_value=50, value=15, 
-                           help="Select how many patents to retrieve in total")
+                           help="Select the total number of patents to search for")
         submitted = st.form_submit_button("Search")
     
     # Search execution
@@ -403,7 +403,7 @@ def update_patent_search_tab():
                 else:
                     st.warning("No search results found.")
             except Exception as e:
-                st.error(f"Error occurred during patent search: {str(e)}")
+                st.error(f"Error during patent search: {str(e)}")
                 logging.error(f"Patent search error: {str(e)}")
                 traceback.print_exc()
 
@@ -421,171 +421,25 @@ def main():
             os.environ['OPENAI_API_KEY'] = api_key_input
     
     # Create tabs for different functionalities
-    tab1, tab2, tab3, tab4 = st.tabs(["Patent Search", "Idea Analysis", "Detailed Comparison", "Report Generation"])
+    tab1, tab2 = st.tabs(["Patent Search", "Detailed Comparison"])
     
     # Tab 1: Patent Search
     with tab1:
         update_patent_search_tab()
 
-    # Tab 2: Idea Analysis
+    # Tab 2: Detailed Comparison
     with tab2:
-        st.header("Idea Analysis")
-        st.write("Analyze new patent ideas and generate reports.")
-        
-        # Idea input form
-        with st.form("idea_analysis_form"):
-            idea_description = st.text_area(
-                "Idea Description",
-                placeholder="Enter the patent idea you want to analyze",
-                height=150
-            )
-            
-            submitted = st.form_submit_button("Analyze")
-        
-        # Analysis execution
-        if submitted and idea_description:
-            with st.spinner("Analyzing idea..."):
-                try:
-                    # Initialize analysis agent
-                    analysis_agent = EnhancedPatentAnalysisAgent()
-                    
-                    # Analyze idea
-                    analysis_result = analysis_agent.analyze_idea(idea_description)
-                    
-                    # Store in session state
-                    st.session_state.idea_description = idea_description
-                    st.session_state.analysis_result = analysis_result
-                    
-                    # Display results
-                    if analysis_result:
-                        st.success("Analysis completed successfully.")
-                        
-                        # Display analysis results
-                        st.subheader("Analysis Results")
-                        
-                        # Technical features
-                        st.markdown("**1. Technical Features:**")
-                        for feature in analysis_result.get('technical_features', []):
-                            st.markdown(f"- {feature}")
-                        
-                        # Improvement suggestions
-                        st.markdown("**2. Improvement Suggestions:**")
-                        for suggestion in analysis_result.get('improvement_suggestions', []):
-                            st.markdown(f"- {suggestion}")
-                        
-                        # Patentability strategies
-                        st.markdown("**3. Patentability Enhancement Strategies:**")
-                        for strategy in analysis_result.get('patentability_strategies', []):
-                            st.markdown(f"- {strategy}")
-                        
-                        # Technical complements
-                        st.markdown("**4. Technical Complements:**")
-                        for complement in analysis_result.get('technical_complements', []):
-                            st.markdown(f"- {complement}")
-                    else:
-                        st.warning("No analysis results available.")
-                except Exception as e:
-                    st.error(f"Error occurred during idea analysis: {str(e)}")
-                    logging.error(f"Idea analysis error: {str(e)}")
-                    traceback.print_exc()
-        
-    # Tab 3: Detailed Comparison
-    with tab3:
         st.header("Detailed Patent Comparison")
         st.write("Compare your idea with specific patents in detail.")
         
         if not ('idea_description' in st.session_state and 'search_results' in st.session_state):
-            st.info("Please complete a patent search or idea analysis first to enable comparison.")
+            st.info("Please complete a patent search first to enable comparison.")
         else:
             add_comparison_feature_to_search_results(
                 st.session_state.search_results,
                 st.session_state.idea_description,
                 api_key_input
             )
-    
-    # Tab 4: Report Generation
-    with tab4:
-        st.header("Report Generation")
-        st.write("Generate final report based on patent search and idea analysis results.")
-        
-        # Check session state
-        has_idea = 'idea_description' in st.session_state and 'analysis_result' in st.session_state
-        has_patents = 'search_results' in st.session_state and st.session_state.search_results
-        
-        if not (has_idea or has_patents):
-            st.warning("Please perform idea analysis or patent search first to generate a report.")
-            return
-        
-        # Report generation form
-        with st.form("report_generation_form"):
-            st.subheader("Report Settings")
-            
-            # Display idea information
-            if has_idea:
-                st.markdown("### Analyzed Idea")
-                st.markdown(f"**Idea Description:** {st.session_state.idea_description[:100]}...")
-            
-            # Display patent search results
-            if has_patents:
-                st.markdown("### Related Patent Search Results")
-                st.markdown(f"**Number of Patents Found:** {len(st.session_state.search_results)}")
-            
-            # Report options
-            include_similarity_analysis = st.checkbox("Include Similarity Analysis", value=True)
-            include_appendix = st.checkbox("Include Appendix", value=True)
-            
-            submitted = st.form_submit_button("Generate Report")
-        
-        if submitted:
-            with st.spinner("Generating report..."):
-                try:
-                    # Initialize PPT generator
-                    ppt_generator = EnhancedPPTGenerator(api_key=api_key_input)
-                    
-                    # Create temp file
-                    temp_dir = tempfile.mkdtemp()
-                    output_path = os.path.join(temp_dir, f"patent_report_{datetime.now().strftime('%Y%m%d_%H%M%S')}.pptx")
-                    
-                    # Generate report
-                    ppt_path = ppt_generator.create_presentation(
-                        idea_description=st.session_state.get('idea_description', ''),
-                        patent_data=st.session_state.get('search_results', []),
-                        analysis_result=st.session_state.get('analysis_result', {}),
-                        output_path=output_path,
-                        include_similarity=include_similarity_analysis,
-                        include_appendix=include_appendix
-                    )
-                    
-                    # Provide download
-                    with open(ppt_path, 'rb') as f:
-                        ppt_data = f.read()
-                    
-                    st.success("Report generated successfully!")
-                    
-                    st.download_button(
-                        label="Download Report",
-                        data=ppt_data,
-                        file_name=f"patent_report_{datetime.now().strftime('%Y%m%d_%H%M%S')}.pptx",
-                        mime="application/vnd.openxmlformats-officedocument.presentationml.presentation"
-                    )
-                    
-                    # Show preview
-                    st.subheader("Report Structure")
-                    st.markdown("""
-                    1. **Title**
-                    2. **Executive Summary**
-                    3. **Problem Statement**
-                    4. **Solution Overview**
-                    5. **Technical Details**
-                    6. **Patent Landscape**
-                    7. **Similarity Analysis** (if selected)
-                    8. **Recommendations**
-                    9. **Appendix** (if selected)
-                    """)
-                except Exception as e:
-                    st.error(f"Error occurred during report generation: {str(e)}")
-                    logging.error(f"Report generation error: {str(e)}")
-                    traceback.print_exc()
 
 if __name__ == "__main__":
     main()
