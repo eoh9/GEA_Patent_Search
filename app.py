@@ -281,7 +281,7 @@ def add_comparison_feature_to_search_results(search_results, idea_description, a
             st.write(selected_patent['similarity_explanation'])
         else:
             # Generate new similarity analysis
-            analysis_agent = EnhancedPatentAnalysisAgent(api_key=api_key)
+            analysis_agent = EnhancedPatentAnalysisAgent()
             similarity_explanation = analysis_agent._calculate_similarity_explanation(
                 idea_description,
                 selected_patent
