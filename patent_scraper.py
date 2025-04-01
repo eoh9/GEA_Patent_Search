@@ -49,7 +49,7 @@ class PatentScraper:
             - abstract: Full abstract text
             - claims: List of top 3-5 claims
             - cpc_classifications: CPC Classifications
-            - link: Patent URL
+            - link: Patent URL (IMPORTANT: use Google Patents URL format: https://patents.google.com/patent/PATENT_ID)
             - description: Brief technical description (max 200 words)
             
             Limit to {num_results} patents maximum.
@@ -58,6 +58,7 @@ class PatentScraper:
             1. Ensure all strings are properly escaped
             2. Your response must be ONLY the JSON array
             3. Do not include ```json or ``` markdown code blocks
+            4. For patent links, ALWAYS use Google Patents format: https://patents.google.com/patent/PATENT_ID
             """
             
             # Enhanced system message
@@ -66,6 +67,7 @@ class PatentScraper:
             Do not include ANY explanatory text, comments, or code block formatting.
             Begin your response with [ and end with ] - the entire response must be a valid JSON array.
             Properly escape all strings, especially those containing quotes.
+            ALWAYS format patent links as Google Patents URLs: https://patents.google.com/patent/PATENT_ID
             """
             
             try:
@@ -106,8 +108,9 @@ class PatentScraper:
                         processed_patents_with_analysis.append(patent)
                     except Exception as e:
                         logging.error(f"Error analyzing patent similarity: {str(e)}")
-                        st.error(f"Error analyzing patent similarity: {str(e)}")
                         # Include patent even if analysis fails
+                        patent['relevance_score'] = 0.0  # Default score
+                        patent['similarity_explanation'] = "Similarity analysis failed."
                         processed_patents_with_analysis.append(patent)
                 
                 # Sort by relevance score
@@ -350,7 +353,7 @@ class PatentScraper:
         return patents
     
     def _process_patent_data(self, patents: List[Dict]) -> List[Dict]:
-        """Process patent data into standardized format"""
+        """Process patent data into standardized format with enhanced Google Patent links"""
         processed_patents = []
         
         if not isinstance(patents, list):
@@ -366,12 +369,20 @@ class PatentScraper:
                 # If both are available, prefer abstract for the description field
                 content_text = abstract if abstract else description
                 
+                # Format patent ID
+                patent_id = str(patent.get("patent_id", ""))
+                
+                # Format Google Patent link
+                link = patent.get("link", "")
+                if not link or not link.startswith("http"):
+                    link = f"https://patents.google.com/patent/{patent_id}" if patent_id else ""
+                
                 processed_patent = {
                     "title": str(patent.get("title", "")),
-                    "patent_id": str(patent.get("patent_id", "")),
+                    "patent_id": patent_id,
                     "abstract": str(abstract),
                     "description": str(content_text),
-                    "link": str(patent.get("link", "")),
+                    "link": link,
                     "inventors": patent.get("inventors", []),
                     "assignee": str(patent.get("assignee", "")),
                     "publication_date": str(patent.get("publication_date", "")),
