@@ -294,7 +294,7 @@ def add_comparison_feature_to_search_results(search_results, idea_description, a
         with col1:
             if st.button("Generate Differentiation Strategy"):
                 with st.spinner("Generating strategy..."):
-                    analysis_agent = EnhancedPatentAnalysisAgent(api_key=api_key)
+                    analysis_agent = EnhancedPatentAnalysisAgent()
                     strategy = analysis_agent.recommend_differentiation(
                         idea_description,
                         [selected_patent]
@@ -305,7 +305,7 @@ def add_comparison_feature_to_search_results(search_results, idea_description, a
         with col2:
             if st.button("Analyze Technical Overlap"):
                 with st.spinner("Analyzing overlap..."):
-                    analysis_agent = EnhancedPatentAnalysisAgent(api_key=api_key)
+                    analysis_agent = EnhancedPatentAnalysisAgent()
                     overlap = analysis_agent._deep_semantic_comparison(
                         idea_description,
                         selected_patent.get('title', ''),
@@ -317,7 +317,7 @@ def add_comparison_feature_to_search_results(search_results, idea_description, a
         with col3:
             if st.button("Suggest Improvements"):
                 with st.spinner("Generating suggestions..."):
-                    analysis_agent = EnhancedPatentAnalysisAgent(api_key=api_key)
+                    analysis_agent = EnhancedPatentAnalysisAgent()
                     suggestions = analysis_agent._generate_improvement_suggestions(idea_description)
                     st.markdown("### Improvement Suggestions")
                     for suggestion in suggestions:
