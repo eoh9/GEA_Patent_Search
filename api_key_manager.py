@@ -1,6 +1,6 @@
 import os
 import streamlit as st
-from patent import ConfigurationError
+from exceptions import ConfigurationError
 
 class APIKeyManager:
     """API 키 관리를 위한 클래스"""
