@@ -447,7 +447,7 @@ def main():
             with st.spinner("Analyzing idea..."):
                 try:
                     # Initialize analysis agent
-                    analysis_agent = EnhancedPatentAnalysisAgent(api_key=api_key_input)
+                    analysis_agent = EnhancedPatentAnalysisAgent()
                     
                     # Analyze idea
                     analysis_result = analysis_agent.analyze_idea(idea_description)
