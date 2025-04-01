@@ -7,24 +7,31 @@ import traceback
 from typing import List, Dict, Optional
 from openai import OpenAI
 from patent import EnhancedPatentAnalysisAgent
+import streamlit as st
+from api_key_manager import APIKeyManager
 
 class Constants:
     DEFAULT_NUM_RESULTS = 20
 
 class PatentScraper:
-    def __init__(self, api_key=None):
-        load_dotenv()
-        self.api_key = api_key or os.getenv('OPENAI_API_KEY')
-        if not self.api_key:
-            raise ValueError("OpenAI API key is not set. Please set the OPENAI_API_KEY environment variable.")
-        
+    """Patent search and analysis system"""
+    
+    def __init__(self):
+        """Initialize the scraper with API key"""
+        self.api_key = APIKeyManager.get_openai_api_key()
         self.client = OpenAI(api_key=self.api_key)
-        self.analysis_agent = EnhancedPatentAnalysisAgent(api_key=self.api_key)
+        self.analysis_agent = EnhancedPatentAnalysisAgent()
         
     def search_patents(self, query: str, num_results: int = Constants.DEFAULT_NUM_RESULTS) -> List[Dict]:
         """Patent search using OpenAI web search - Enhanced version with error handling"""
         try:
             logging.info(f"Starting OpenAI web search for patents: {query}")
+            
+            # API 키 확인
+            if not self.api_key:
+                logging.error("OpenAI API key is not set")
+                st.error("OpenAI API key is not configured. Please check your environment variables.")
+                return []
             
             # Create web search prompt
             search_prompt = f"""
@@ -61,57 +68,63 @@ class PatentScraper:
             Properly escape all strings, especially those containing quotes.
             """
             
-            # Execute OpenAI web search - removed response_format and updated search_context_size
-            response = self.client.chat.completions.create(
-                model="gpt-4o-search-preview",
-                messages=[
-                    {"role": "system", "content": system_message},
-                    {"role": "user", "content": search_prompt}
-                ],
-                web_search_options={
-                    "search_context_size": "high"  # Valid values: "low", "medium", "high"
-                },
-                max_tokens=4000
-            )
-            
-            # Get response content
-            response_content = response.choices[0].message.content
-            
-            # Log sample for debugging
-            sample_length = min(500, len(response_content))
-            logging.debug(f"Response sample (first {sample_length} chars): {response_content[:sample_length]}...")
-            
-            # Enhanced parsing attempt
-            patents = self._parse_gpt_response(response_content)
-            
-            if not patents:
-                logging.warning("No patents found in the search results.")
+            try:
+                # Execute OpenAI web search
+                response = self.client.chat.completions.create(
+                    model="gpt-4",
+                    messages=[
+                        {"role": "system", "content": system_message},
+                        {"role": "user", "content": search_prompt}
+                    ],
+                    max_tokens=4000
+                )
+                
+                # Get response content
+                response_content = response.choices[0].message.content
+                
+                # Log sample for debugging
+                sample_length = min(500, len(response_content))
+                logging.debug(f"Response sample (first {sample_length} chars): {response_content[:sample_length]}...")
+                
+                # Enhanced parsing attempt
+                patents = self._parse_gpt_response(response_content)
+                
+                if not patents:
+                    logging.warning("No patents found in the search results.")
+                    st.warning("No patents found for your search query. Please try different keywords.")
+                    return []
+                
+                # Process patent data
+                processed_patents = self._process_patent_data(patents)
+                
+                # Add analysis results
+                processed_patents_with_analysis = []
+                for patent in processed_patents:
+                    try:
+                        analysis_result = self.analysis_agent.analyze_patent_similarity(query, patent)
+                        patent.update(analysis_result)
+                        processed_patents_with_analysis.append(patent)
+                    except Exception as e:
+                        logging.error(f"Error analyzing patent similarity: {str(e)}")
+                        st.error(f"Error analyzing patent similarity: {str(e)}")
+                        # Include patent even if analysis fails
+                        processed_patents_with_analysis.append(patent)
+                
+                # Sort by relevance score
+                processed_patents_with_analysis.sort(key=lambda x: x.get('relevance_score', 0), reverse=True)
+                
+                logging.info(f"Successfully processed {len(processed_patents_with_analysis)} patents")
+                return processed_patents_with_analysis
+                
+            except Exception as e:
+                logging.error(f"OpenAI API call failed: {str(e)}")
+                st.error(f"Failed to search patents: {str(e)}")
                 return []
-            
-            # Process patent data
-            processed_patents = self._process_patent_data(patents)
-            
-            # Add analysis results
-            processed_patents_with_analysis = []
-            for patent in processed_patents:
-                try:
-                    analysis_result = self.analysis_agent.analyze_patent_similarity(query, patent)
-                    patent.update(analysis_result)
-                    processed_patents_with_analysis.append(patent)
-                except Exception as e:
-                    logging.error(f"Error analyzing patent similarity: {str(e)}")
-                    # Include patent even if analysis fails
-                    processed_patents_with_analysis.append(patent)
-            
-            # Sort by relevance score
-            processed_patents_with_analysis.sort(key=lambda x: x.get('relevance_score', 0), reverse=True)
-            
-            logging.info(f"Successfully processed {len(processed_patents_with_analysis)} patents")
-            return processed_patents_with_analysis
             
         except Exception as e:
             logging.error(f"Search error: {str(e)}")
             traceback.print_exc()
+            st.error(f"An unexpected error occurred: {str(e)}")
             return []
     
     def _parse_gpt_response(self, response_text: str) -> List[Dict]:
