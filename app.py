@@ -194,9 +194,19 @@ def display_patent_details(patent):
         for i, claim in enumerate(patent['claims'], 1):
             st.write(f"Claim {i}: {claim}")
     
-    # Patent link
+    # Patent link - Fix to ensure proper Google Patent link format
     if patent.get('link'):
-        st.write(f"**Patent Link:** [{patent['link']}]({patent['link']}")
+        # Check if it's already a Google patent link
+        link = patent['link']
+        if not link.startswith('http'):
+            link = f"https://patents.google.com/patent/{patent.get('patent_id', 'US')}"
+        st.write(f"**Patent Link:** [{link}]({link})")
+    else:
+        # Create Google patent link from patent ID if link is missing
+        patent_id = patent.get('patent_id', '')
+        if patent_id:
+            google_link = f"https://patents.google.com/patent/{patent_id}"
+            st.write(f"**Patent Link:** [{google_link}]({google_link})")
 
 def display_similarity_visualizations(idea_description, patents):
     """Display visualizations showing patent similarities"""
@@ -313,6 +323,90 @@ def add_comparison_feature_to_search_results(search_results, idea_description, a
                     for suggestion in suggestions:
                         st.write(f"- {suggestion}")
 
+def display_search_results(search_query, search_results):
+    """Display search results with top 5 patents highlighted"""
+    st.success(f"Found {len(search_results)} patents.")
+    
+    # Display similarity visualizations
+    display_similarity_visualizations(search_query, search_results)
+    
+    # Create a dataframe of all patents
+    df = pd.DataFrame(search_results)
+    display_cols = ['patent_id', 'title', 'assignee', 'publication_date', 'relevance_score']
+    if all(col in df.columns for col in display_cols):
+        # Sort by relevance score if available
+        if 'relevance_score' in df.columns:
+            df = df.sort_values(by='relevance_score', ascending=False)
+        
+        # Format relevance score as percentage with 1 decimal place if available
+        if 'relevance_score' in df.columns:
+            df['relevance_score'] = df['relevance_score'].apply(lambda x: f"{x:.1f}%" if pd.notnull(x) else "N/A")
+            display_cols_with_score = display_cols
+        else:
+            display_cols_with_score = display_cols[:-1]  # Remove relevance_score if not available
+            
+        # Display all patents in a dataframe
+        st.dataframe(df[display_cols_with_score], use_container_width=True)
+    
+    # Display top 5 patents prominently
+    st.subheader("Top 5 Most Relevant Patents")
+    top_patents = sorted(search_results, key=lambda x: x.get('relevance_score', 0), reverse=True)[:5]
+    
+    # Show the top 5 patents with expanders
+    for idx, patent in enumerate(top_patents, 1):
+        relevance = patent.get('relevance_score', 0)
+        relevance_text = f" - Relevance: {relevance:.1f}%" if relevance > 0 else ""
+        with st.expander(f"{idx}. {patent.get('title', 'No Title')}{relevance_text}"):
+            display_patent_details(patent)
+    
+    # Also show all patents (if more than 5)
+    if len(search_results) > 5:
+        st.subheader("All Patents")
+        for idx, patent in enumerate(search_results, 1):
+            if idx > 5:  # Skip the first 5 already shown
+                relevance = patent.get('relevance_score', 0)
+                relevance_text = f" - Relevance: {relevance:.1f}%" if relevance > 0 else ""
+                with st.expander(f"{idx}. {patent.get('title', 'No Title')}{relevance_text}"):
+                    display_patent_details(patent)
+
+def update_patent_search_tab():
+    """Code for the updated patent search tab"""
+    st.header("Patent Search")
+    st.write("Search and analyze existing patents.")
+    
+    # Search form
+    with st.form("patent_search_form"):
+        search_query = st.text_area("Enter Search Query", 
+                               placeholder="Enter the patent content you want to search for")
+        num_results = st.slider("Number of Patents to Search", 
+                           min_value=5, max_value=50, value=15, 
+                           help="Select how many patents to retrieve in total")
+        submitted = st.form_submit_button("Search")
+    
+    # Search execution
+    if submitted and search_query:
+        with st.spinner("Searching patents..."):
+            try:
+                # Initialize patent scraper
+                scraper = PatentScraper()
+                
+                # Search patents
+                search_results = scraper.search_patents(search_query, num_results=num_results)
+                
+                # Store results in session state
+                st.session_state.search_results = search_results
+                st.session_state.idea_description = search_query
+                
+                # Display results
+                if search_results:
+                    display_search_results(search_query, search_results)
+                else:
+                    st.warning("No search results found.")
+            except Exception as e:
+                st.error(f"Error occurred during patent search: {str(e)}")
+                logging.error(f"Patent search error: {str(e)}")
+                traceback.print_exc()
+
 def main():
     """Main application function"""
     setup_page()
@@ -331,53 +425,7 @@ def main():
     
     # Tab 1: Patent Search
     with tab1:
-        st.header("Patent Search")
-        st.write("Search and analyze existing patents.")
-        
-        # Search form
-        with st.form("patent_search_form"):
-            search_query = st.text_area("Enter Search Query", placeholder="Enter the patent content you want to search for")
-            num_results = st.slider("Number of Results", min_value=5, max_value=50, value=15)
-            submitted = st.form_submit_button("Search")
-        
-        # Search execution
-        if submitted and search_query:
-            with st.spinner("Searching patents..."):
-                try:
-                    # Initialize patent scraper
-                    scraper = PatentScraper()
-                    
-                    # Search patents
-                    search_results = scraper.search_patents(search_query, num_results=num_results)
-                    
-                    # Store results in session state
-                    st.session_state.search_results = search_results
-                    st.session_state.idea_description = search_query
-                    
-                    # Display results
-                    if search_results:
-                        st.success(f"Found {len(search_results)} patents.")
-                        
-                        # Display similarity visualizations
-                        display_similarity_visualizations(search_query, search_results)
-                        
-                        # Display results in a dataframe
-                        df = pd.DataFrame(search_results)
-                        display_cols = ['patent_id', 'title', 'assignee', 'publication_date']
-                        if all(col in df.columns for col in display_cols):
-                            st.dataframe(df[display_cols], use_container_width=True)
-                        
-                        # Display detailed information
-                        st.subheader("Patent Details")
-                        for idx, patent in enumerate(search_results, 1):
-                            with st.expander(f"{idx}. {patent.get('title', 'No Title')}"):
-                                display_patent_details(patent)
-                    else:
-                        st.warning("No search results found.")
-                except Exception as e:
-                    st.error(f"Error occurred during patent search: {str(e)}")
-                    logging.error(f"Patent search error: {str(e)}")
-                    traceback.print_exc()
+        update_patent_search_tab()
 
     # Tab 2: Idea Analysis
     with tab2:
