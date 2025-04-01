@@ -28,6 +28,7 @@ import openai
 import re
 import textwrap
 from api_key_manager import APIKeyManager
+from exceptions import ConfigurationError, PatentAnalysisError
 
 # Load environment variables first
 load_dotenv()
