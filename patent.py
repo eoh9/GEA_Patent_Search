@@ -576,50 +576,28 @@ class EnhancedPatentAnalysisAgent:
             }
     
     def _extract_semantic_keywords(self, idea_description):
-        prompt = f"""
-        Extract semantic keywords from the following patent idea description.
-        Focus on understanding the core technology, problem being solved, and unique approach.
-        Extract 3 types of keywords:
-    
-        1. Core Technical Concepts (3-4 keywords): The fundamental technical principles or mechanisms
-        2. Problem Domain Keywords (2-3 keywords): What problem is being solved
-        3. Unique Approach Keywords (2-3 keywords): What makes this solution unique
-        4. Alternative Terminology (2-3 keywords): Different ways people might refer to similar concepts
-    
-        Return the keywords as a JSON object with these four categories as properties, each with an array of strings.
-    
-        Patent idea description:
-        {idea_description}
-        """
-    
+        """의미론적 키워드 추출"""
         try:
+            prompt = f"""
+            다음 특허 아이디어에서 핵심 기술 키워드를 추출해주세요:
+            
+            {idea_description}
+            
+            응답은 쉼표로 구분된 키워드 목록만 반환해주세요.
+            """
+            
             response = self.client.chat.completions.create(
-                model="gpt-3.5-turbo",
-                messages=[{"role": "user", "content": prompt}]
+                model=Constants.GPT_MODEL,
+                messages=[{"role": "user", "content": prompt}],
+                temperature=0.3
             )
-        
-            result = json.loads(response.choices[0].message.content)
-        
-        # 결과 유효성 검사 및 기본값 설정
-            if not isinstance(result, dict):
-                result = {}
             
-        # 모든 키워드를 단일 리스트로 통합 (유효성 검사 추가)
-            all_keywords = []
-            for category, keywords in result.items():
-                if isinstance(keywords, list):
-                    all_keywords.extend(keywords)
+            keywords = [k.strip() for k in response.choices[0].message.content.split(',')]
+            return keywords
             
-            return {
-                "structured": result,
-                "all": all_keywords
-            }
         except Exception as e:
-            print(f"Error extracting semantic keywords: {e}")
-            return {
-                "structured": {},
-                "all": []
-            }
+            logging.error(f"키워드 추출 오류: {str(e)}")
+            return []
     
     def _classify_patent_domain(self, idea_description):
         """Classify the patent domain and type for better targeting"""
@@ -1734,7 +1712,7 @@ class EnhancedPatentAnalysisAgent:
             return "Could not generate detailed similarity explanation due to an error."
 
     def _calculate_semantic_relevance(self, query: str, patent: Dict) -> float:
-        """시맨틱 유사도 점수를 계산합니다 (0-1 범위)"""
+        """의미론적 관련성 점수를 계산합니다 (0-1 범위)"""
         try:
             # 특허 텍스트 준비
             patent_text = f"{patent.get('title', '')} {patent.get('abstract', '')} {patent.get('description', '')}"
