@@ -1,7 +1,15 @@
 class ConfigurationError(Exception):
-    """설정 관련 오류를 위한 사용자 정의 예외"""
+    """Exception for configuration-related errors"""
     pass
 
 class PatentAnalysisError(Exception):
-    """특허 분석 관련 오류를 위한 사용자 정의 예외"""
+    """Exception for patent analysis-related errors"""
+    pass
+
+class APIError(Exception):
+    """Exception for API call-related errors"""
+    pass
+
+class ValidationError(Exception):
+    """Exception for data validation-related errors"""
     pass 
