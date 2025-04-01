@@ -73,7 +73,7 @@ class PatentScraper:
             try:
                 # Execute OpenAI web search
                 response = self.client.chat.completions.create(
-                    model="gpt-4",
+                    model="gpt-4o-search-preview",
                     messages=[
                         {"role": "system", "content": system_message},
                         {"role": "user", "content": search_prompt}
