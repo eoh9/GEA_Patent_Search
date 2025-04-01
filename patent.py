@@ -97,9 +97,6 @@ class APIKeyManager:
             )
         return api_key
 
-# Initialize OpenAI client after APIKeyManager is defined
-client = OpenAI(api_key=APIKeyManager.get_openai_api_key())
-
 class ErrorHandler:
     """공통 오류 처리를 위한 클래스"""
     
@@ -181,8 +178,11 @@ class PatentAnalysisError(Exception):
     pass
 
 class EnhancedPatentAnalysisAgent:
-    def __init__(self, api_key=None):
-        self.api_key = api_key or APIKeyManager.get_openai_api_key()
+    """Enhanced patent analysis agent with improved similarity calculation"""
+    
+    def __init__(self):
+        """Initialize the agent with API key"""
+        self.api_key = APIKeyManager.get_openai_api_key()
         self.client = OpenAI(api_key=self.api_key)
         self.cache_manager = CacheManager()
         self.domain_info = None
