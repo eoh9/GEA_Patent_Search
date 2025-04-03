@@ -18,7 +18,8 @@ class PatentScraper:
     
     def __init__(self):
         """Initialize the scraper with API key"""
-        self.api_key = APIKeyManager.get_openai_api_key()
+        self.api_key_manager = APIKeyManager()
+        self.api_key = self.api_key_manager.get_openai_api_key()
         self.client = OpenAI(api_key=self.api_key)
         self.analysis_agent = EnhancedPatentAnalysisAgent()
         
